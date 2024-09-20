@@ -1,0 +1,2 @@
+export const THUMBNAIL_MAX_WIDTH = 600;
+export const THUMBNAIL_MAX_HEIGHT = 450;
