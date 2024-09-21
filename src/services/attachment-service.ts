@@ -1,7 +1,13 @@
 import { ObjectId } from "mongodb";
-import { downloadFromGridFS, getCollection, uploadToGridFS } from "../lib/mongodb";
+import {
+  deleteFromGridFS,
+  downloadFromGridFS,
+  getCollection,
+  uploadToGridFS,
+} from "../lib/mongodb";
 import { generateThumbnail, hasThumbnail } from "../utils/thumbnail";
 import Attachment, { File } from "../models/attachment";
+import { logError } from "../utils/error";
 
 export async function uploadFile(
   file: Express.Multer.File,
@@ -108,4 +114,22 @@ export async function downloadThumbnailById(
   if (!doc || !doc.file || !doc.file.thumbnail) return null;
 
   return downloadFromGridFS(doc.file.thumbnail.gridId, "thumbnails");
+}
+
+export async function deleteByIds(ids: string[]): Promise<void> {
+  const collection = await getCollection("attachments");
+
+  const objectIds = ids.map((id) => new ObjectId(id));
+  const docs = await collection.find({ _id: { $in: objectIds } }).toArray();
+
+  for (const doc of docs) {
+    if (!doc.file) continue;
+
+    deleteFromGridFS(doc.file.gridId, "files").catch(logError);
+
+    if (doc.file.thumbnail)
+      deleteFromGridFS(doc.file.thumbnail.gridId, "thumbnails").catch(logError);
+  }
+
+  await collection.deleteMany({ _id: { $in: objectIds } });
 }

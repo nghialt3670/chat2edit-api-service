@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import streamifier from "streamifier";
 import createReference, {
+  deleteByIds,
   downloadFileById,
   downloadThumbnailById,
   uploadFile,
@@ -66,6 +67,19 @@ export async function getThumbnail(request: Request, response: Response) {
     const buffer = await downloadThumbnailById(attachmentId);
     if (!buffer) response.status(400).send("Thumbnail not found");
     response.end(buffer);
+  } catch (error) {
+    logError(error);
+    response
+      .status(500)
+      .send(error instanceof Error ? error.message : "Unknown error");
+  }
+}
+
+export async function deleteAttachments(request: Request, response: Response) {
+  try {
+    const attachmentIds = request.body.attachmentIds as string[];
+    await deleteByIds(attachmentIds);
+    response.status(204).send();
   } catch (error) {
     logError(error);
     response

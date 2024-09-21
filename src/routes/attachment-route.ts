@@ -2,10 +2,12 @@ import { Router } from "express";
 import multer from "multer";
 import {
   createReferences,
+  deleteAttachments,
   getFile,
   getThumbnail,
   uploadFiles,
 } from "../controllers/attachment-controller";
+import deleteAttachmentsSchema from "../schemas/delete-attachments-schema";
 import createReferencesSchema from "../schemas/create-references-schema";
 import getFileOrThumbnailSchema from "../schemas/get-file-schema";
 import uploadFilesSchema from "../schemas/upload-files-schema";
@@ -35,5 +37,7 @@ router.get(
 );
 
 router.get("/file", validateRequest(getFileOrThumbnailSchema), getFile);
+
+router.delete("/", validateRequest(deleteAttachmentsSchema), deleteAttachments);
 
 export default router;

@@ -23,4 +23,4 @@ export const clamOptions: Options = {
     bypassTest: false, // Check to see if socket is available when applicable
   },
   preference: "clamdscan", // If clamdscan is found and active, it will be used by default
-}
+};

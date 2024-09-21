@@ -8,13 +8,11 @@ export default function validateRequest(schema: z.ZodSchema) {
         body: request.body,
         query: request.query,
         params: request.params,
-        files: request.files
+        files: request.files,
       });
       next();
     } catch (e) {
-      return response
-        .status(422)
-        .send(e instanceof ZodError ? e.errors : e);
+      return response.status(422).send(e instanceof ZodError ? e.errors : e);
     }
   };
 }

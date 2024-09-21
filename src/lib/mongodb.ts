@@ -62,3 +62,11 @@ export async function downloadFromGridFS(
     });
   });
 }
+
+export async function deleteFromGridFS(
+  fileId: ObjectId,
+  bucketName: string,
+): Promise<void> {
+  const bucket = await getBucket(bucketName);
+  await bucket.delete(fileId);
+}
