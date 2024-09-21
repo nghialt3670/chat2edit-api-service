@@ -1,6 +1,6 @@
 import NodeClam from "clamscan";
-import { logError } from "../utils/error";
 import { clamOptions } from "../configs/clamscan";
+import { logError } from "../utils/error";
 
 const clamPromise = new NodeClam().init(clamOptions);
 
