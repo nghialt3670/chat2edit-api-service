@@ -1,23 +1,16 @@
 import { Request, Response } from "express";
 import streamifier from "streamifier";
-import createReferenceAttachment, {
-  findAttachmentById,
-  uploadFileAttachment,
+import createReference, {
+  downloadFileById,
+  downloadThumbnailById,
+  uploadFile,
 } from "../services/attachment-service";
-import { downloadFromGridFS } from "../lib/db";
-import Attachment from "../models/attachment";
 import { logError } from "../utils/error";
-import initClam from "../lib/scan";
+import initClam from "../lib/clamscan";
 
-export async function uploadFileAttachments(
-  request: Request,
-  response: Response,
-) {
+export async function uploadFiles(request: Request, response: Response) {
   try {
     const files = request.files as Express.Multer.File[];
-
-    if (!files || files.length === 0)
-      return response.status(400).send("No file uploaded");
 
     // Virus scanning
     const clam = await initClam();
@@ -30,12 +23,8 @@ export async function uploadFileAttachments(
       }),
     );
 
-    // Attachment uploading
-    const attachmentIds = await Promise.all(
-      files.map(async (file) => await uploadFileAttachment(file)),
-    );
-
-    response.status(200).send(attachmentIds);
+    const attachments = await Promise.all(files.map(uploadFile));
+    response.status(200).send(attachments);
   } catch (error) {
     logError(error);
     response
@@ -44,24 +33,11 @@ export async function uploadFileAttachments(
   }
 }
 
-export async function createReferenceAttachments(
-  request: Request,
-  response: Response,
-) {
+export async function createReferences(request: Request, response: Response) {
   try {
-    const { referencedIds } = request.body;
-
-    if (!referencedIds || referencedIds.length === 0)
-      return response.status(400).send("No ref ID provided");
-
-    // Reference creating
-    const referenceIds = await Promise.all(
-      referencedIds.map(
-        async (id: string) => await createReferenceAttachment(id),
-      ),
-    );
-
-    response.status(200).send(referenceIds);
+    const referencedIds = request.body.referencedIds as string[];
+    const attachments = await Promise.all(referencedIds.map(createReference));
+    response.status(200).send(attachments);
   } catch (error) {
     logError(error);
     response
@@ -72,18 +48,9 @@ export async function createReferenceAttachments(
 
 export async function getFile(request: Request, response: Response) {
   try {
-    const { attachmentId } = request.query;
-
-    const attachment = (await findAttachmentById(
-      attachmentId as string,
-    )) as unknown as Attachment;
-    if (!attachment) return response.status(400).send("Attachment not found");
-    if (!attachment.file)
-      return response.status(400).send("Attachment file not found");
-
-    const fileId = attachment.file!.gridId;
-    const buffer = await downloadFromGridFS(fileId, "files");
-
+    const attachmentId = request.query.attachmentId as string;
+    const buffer = await downloadFileById(attachmentId);
+    if (!buffer) response.status(400).send("File not found");
     response.end(buffer);
   } catch (error) {
     logError(error);
@@ -95,21 +62,9 @@ export async function getFile(request: Request, response: Response) {
 
 export async function getThumbnail(request: Request, response: Response) {
   try {
-    const { attachmentId } = request.query;
-
-    const attachment = (await findAttachmentById(
-      attachmentId as string,
-    )) as unknown as Attachment;
-    if (!attachment)
-      return response.status(400).send("Attachment file not found");
-    if (!attachment.file)
-      return response.status(400).send("Attachment file not found");
-    if (!attachment.file.thumbnail)
-      return response.status(400).send("Attachment file thumbnail not found");
-
-    const thumbnailId = attachment.file!.thumbnail!.gridId;
-    const buffer = await downloadFromGridFS(thumbnailId, "thumbnails");
-
+    const attachmentId = request.query.attachmentId as string;
+    const buffer = await downloadThumbnailById(attachmentId);
+    if (!buffer) response.status(400).send("Thumbnail not found");
     response.end(buffer);
   } catch (error) {
     logError(error);

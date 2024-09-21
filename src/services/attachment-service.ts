@@ -1,9 +1,11 @@
 import { ObjectId } from "mongodb";
+import { downloadFromGridFS, getCollection, uploadToGridFS } from "../lib/mongodb";
 import { generateThumbnail, hasThumbnail } from "../utils/thumbnail";
-import { getCollection, uploadToGridFS } from "../lib/db";
-import { File } from "../models/attachment";
+import Attachment, { File } from "../models/attachment";
 
-export async function uploadFileAttachment(file: Express.Multer.File) {
+export async function uploadFile(
+  file: Express.Multer.File,
+): Promise<Attachment> {
   const collection = await getCollection("attachments");
 
   const fileId = await uploadToGridFS(
@@ -42,10 +44,16 @@ export async function uploadFileAttachment(file: Express.Multer.File) {
     file: fileModel,
   });
 
-  return result.insertedId;
+  return {
+    id: result.insertedId,
+    type: "file",
+    file: fileModel,
+  };
 }
 
-export default async function createReferenceAttachment(referencedId: string) {
+export default async function createReference(
+  referencedId: string,
+): Promise<Attachment> {
   const collection = await getCollection("attachments");
 
   const id = new ObjectId(referencedId);
@@ -57,10 +65,47 @@ export default async function createReferenceAttachment(referencedId: string) {
     referencedId: referenced._id,
   });
 
-  return result.insertedId;
+  return {
+    id: result.insertedId,
+    type: "ref",
+    referencedId: referenced._id,
+  };
 }
 
-export async function findAttachmentById(id: string) {
+export async function findById(id: string): Promise<Attachment | null> {
   const collection = await getCollection("attachments");
-  return await collection.findOne({ _id: new ObjectId(id) });
+
+  const doc = await collection.findOne({ _id: new ObjectId(id) });
+  if (!doc) return null;
+
+  const attachment: Attachment = {
+    id: doc._id,
+    type: doc.type,
+  };
+
+  if (doc.file) attachment.file = doc.file;
+  if (doc.link) attachment.link = doc.link;
+  if (doc.referencedId) attachment.referencedId = doc.referencedId;
+
+  return attachment;
+}
+
+export async function downloadFileById(id: string): Promise<Buffer | null> {
+  const collection = await getCollection("attachments");
+
+  const doc = await collection.findOne({ _id: new ObjectId(id) });
+  if (!doc || !doc.file) return null;
+
+  return downloadFromGridFS(doc.file.gridId, "files");
+}
+
+export async function downloadThumbnailById(
+  id: string,
+): Promise<Buffer | null> {
+  const collection = await getCollection("attachments");
+
+  const doc = await collection.findOne({ _id: new ObjectId(id) });
+  if (!doc || !doc.file || !doc.file.thumbnail) return null;
+
+  return downloadFromGridFS(doc.file.thumbnail.gridId, "thumbnails");
 }

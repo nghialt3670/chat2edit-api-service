@@ -1,7 +1,6 @@
-import NodeClam from "clamscan";
-import { logError } from "../utils/error";
+import { Options } from "clamscan";
 
-const clamPromise = new NodeClam().init({
+export const clamOptions: Options = {
   removeInfected: false, // If true, removes infected files
   quarantineInfected: false, // False: Don't quarantine, Path: Moves files to this place.
   debugMode: false, // Whether or not to log info/debug/error msgs to the console
@@ -24,12 +23,4 @@ const clamPromise = new NodeClam().init({
     bypassTest: false, // Check to see if socket is available when applicable
   },
   preference: "clamdscan", // If clamdscan is found and active, it will be used by default
-});
-
-export default async function initClam(): Promise<NodeClam> {
-  try {
-    return await clamPromise;
-  } catch (error) {
-    throw logError(error);
-  }
 }

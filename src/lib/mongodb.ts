@@ -1,6 +1,7 @@
 import { GridFSBucket, ObjectId } from "mongodb";
 import { MongoClient } from "mongodb";
 import { logError } from "../utils/error";
+import ENV from "../utils/env";
 
 let client: MongoClient | undefined;
 
@@ -8,7 +9,7 @@ export async function initClient(): Promise<MongoClient> {
   if (client) return client;
 
   try {
-    client = await new MongoClient(process.env.MONGO_URI!).connect();
+    client = await new MongoClient(ENV.MONGO_URI).connect();
     return client;
   } catch (error) {
     throw error;
@@ -32,13 +33,14 @@ export async function uploadToGridFS(
   bucketName: string,
 ): Promise<ObjectId> {
   const bucket = await getBucket(bucketName);
+
   return new Promise((resolve) => {
     const writeStream = bucket.openUploadStream(filename, { contentType });
+
     writeStream.end(buffer);
     writeStream.on("finish", () => resolve(writeStream.id));
     writeStream.on("error", (error) => {
-      logError(error);
-      throw error;
+      throw logError(error);
     });
   });
 }
@@ -48,6 +50,7 @@ export async function downloadFromGridFS(
   bucketName: string,
 ): Promise<Buffer> {
   const bucket = await getBucket(bucketName);
+
   return new Promise((resolve) => {
     const readStream = bucket.openDownloadStream(fileId);
 
