@@ -1,6 +1,6 @@
 import { Canvas } from "fabric/node";
+import sharp, { Sharp } from "sharp";
 import { Buffer } from "buffer";
-import sharp from "sharp";
 import {
   THUMBNAIL_MAX_HEIGHT,
   THUMBNAIL_MAX_WIDTH,
@@ -12,48 +12,60 @@ export function hasThumbnail(file: Express.Multer.File): boolean {
   );
 }
 
-interface GeneratedThumbnail {
-  buffer: Buffer;
-  width: number;
-  height: number;
+export async function hasTransparency(image: Sharp): Promise<boolean> {
+  const { data } = await image
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  return data.some((value, index) => index % 4 === 3 && value < 255);
 }
 
-export async function generateThumbnail(
-  file: Express.Multer.File,
-): Promise<GeneratedThumbnail> {
+export async function getImageBuffer(file: Express.Multer.File) {
   if (file.mimetype.startsWith("image/")) {
-    const buffer = await sharp(file.buffer)
-      .resize({
-        width: THUMBNAIL_MAX_WIDTH,
-        height: THUMBNAIL_MAX_HEIGHT,
-        fit: "inside",
-        withoutEnlargement: true,
-      })
-      .toBuffer();
-
-    const { width, height } = await sharp(buffer).metadata();
-    if (!width || !height) throw new Error("Can not read width and height");
-
-    return { buffer, width, height };
+    return file.buffer;
   } else if (file.originalname.endsWith(".fabric")) {
     const canvas = new Canvas();
     await canvas.loadFromJSON(file.buffer.toJSON());
-
-    const newWidth = Math.min(canvas.width, THUMBNAIL_MAX_WIDTH);
-    const newHeight = Math.min(canvas.height, THUMBNAIL_MAX_HEIGHT);
-    canvas.setDimensions({
-      width: newWidth,
-      height: newHeight,
-    });
-
-    const dataURL = canvas.toDataURL({ format: "jpeg", multiplier: 1 });
-    const base64 = dataURL.split(",").pop()!;
-    return {
-      buffer: Buffer.from(base64, "base64"),
-      width: newWidth,
-      height: newHeight,
-    };
+    const base64 = canvas.toDataURL().split(",").pop()!;
+    return Buffer.from(base64, "base64");
   } else {
     throw new Error("Unsupported file type for thumbnail generation");
   }
+}
+
+interface CreateThumbnailReturn {
+  buffer: Buffer;
+  width: number;
+  height: number;
+  format: "jpeg" | "png";
+}
+
+export async function createThumbnail(
+  file: Express.Multer.File,
+): Promise<CreateThumbnailReturn> {
+  const imageBuffer = await getImageBuffer(file);
+
+  const thumbnail = sharp(imageBuffer).resize({
+    width: THUMBNAIL_MAX_WIDTH,
+    height: THUMBNAIL_MAX_HEIGHT,
+    fit: "inside",
+    withoutEnlargement: true,
+  });
+
+  const { width, height, channels } = await thumbnail.metadata();
+  if (!width || !height) throw new Error("Failed to extract thumbnail size");
+
+  const format =
+    channels === 4
+      ? (await hasTransparency(thumbnail))
+        ? "png"
+        : "jpeg"
+      : "jpeg";
+
+  const buffer =
+    format === "png"
+      ? await thumbnail.png().toBuffer()
+      : await thumbnail.jpeg().toBuffer();
+
+  return { buffer, width, height, format };
 }
