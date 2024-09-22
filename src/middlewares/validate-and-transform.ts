@@ -2,22 +2,23 @@ import { Request, Response } from "express";
 import { z, ZodError } from "zod";
 
 export default function validateAndTransform(schema: z.ZodSchema) {
-  return (request: Request, response: Response, next: Function) => {
+  return (req: Request, res: Response, next: Function) => {
     try {
       const parsed = schema.parse({
-        params: request.params,
-        query: request.query,
-        files: request.files,
-        body: request.body,
+        params: req.params,
+        query: req.query,
+        files: req.files,
+        file: req.file,
+        body: req.body,
       });
 
-      request.params = parsed.params;
-      request.query = parsed.query;
-      request.body = parsed.body;
+      req.params = parsed.params;
+      req.query = parsed.query;
+      req.body = parsed.body;
 
       next();
     } catch (e) {
-      return response.status(422).send(e instanceof ZodError ? e.errors : e);
+      return res.status(422).send(e instanceof ZodError ? e.errors : e);
     }
   };
 }

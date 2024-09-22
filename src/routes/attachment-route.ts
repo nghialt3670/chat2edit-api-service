@@ -1,58 +1,86 @@
 import { Router } from "express";
 import multer from "multer";
-import {
-  createRefs,
-  deleteAttachments,
-  getAttachments,
-  getFile,
-  getThumbnail,
-  uploadFiles,
-} from "../controllers/attachment-controller";
-import getFileOrThumbnailSchema from "../schemas/get-file-or-thumbnail-schema";
+
+import { Collection } from "mongodb";
+import uploadMultipleFilesSchema from "../schemas/upload-multiple-files-schema";
+import singleActionByIdSchema from "../schemas/single-action-by-id-schema";
+import uploadSingleFileSchema from "../schemas/upload-single-file-schema";
 import validateAndTransform from "../middlewares/validate-and-transform";
-import getOrDeleteManySchema from "../schemas/get-or-delete-many-schema";
-import uploadFilesSchema from "../schemas/upload-files-schema";
-import createRefsSchema from "../schemas/create-refs-schema";
+import bulkActionByIdsSchema from "../schemas/bulk-action-by-ids-schema";
+import AttachmentController from "../controllers/attachment-controller";
+import AttachmentService from "../services/attachment-service";
+import { getCollection } from "../lib/mongodb";
+import Attachment from "../models/attachment";
+import { logError } from "../utils/error";
 
 const router = Router();
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
-router.get(
-  "/attachments",
-  validateAndTransform(getOrDeleteManySchema),
-  getAttachments,
-);
+async function initRoutes() {
+  const collection = (await getCollection(
+    "attachments",
+  )) as unknown as Collection<Attachment>;
+  const service = new AttachmentService(collection);
+  const controller = new AttachmentController(service);
 
-router.post(
-  "/attachments/files",
-  upload.array("files"),
-  validateAndTransform(uploadFilesSchema),
-  uploadFiles,
-);
+  router.get(
+    "/attachments/:id",
+    validateAndTransform(singleActionByIdSchema),
+    controller.getById,
+  );
 
-router.post(
-  "/attachments/refs",
-  validateAndTransform(createRefsSchema),
-  createRefs,
-);
+  router.delete(
+    "/attachments/:id",
+    validateAndTransform(singleActionByIdSchema),
+    controller.deleteById,
+  );
 
-router.delete(
-  "/attachments",
-  validateAndTransform(getOrDeleteManySchema),
-  deleteAttachments,
-);
+  router.get(
+    "/attachments/:id/file",
+    validateAndTransform(singleActionByIdSchema),
+    controller.getFile,
+  );
 
-router.get(
-  "/attachment/:id/file",
-  validateAndTransform(getFileOrThumbnailSchema),
-  getFile,
-);
+  router.get(
+    "/attachments/:id/file/thumbnail",
+    validateAndTransform(singleActionByIdSchema),
+    controller.getFileThumbnail,
+  );
 
-router.get(
-  "/attachment/:id/thumbnail",
-  validateAndTransform(getFileOrThumbnailSchema),
-  getThumbnail,
-);
+  router.post(
+    "/attachments/:id/references",
+    validateAndTransform(singleActionByIdSchema),
+    controller.createReference,
+  );
+
+  router.get(
+    "/attachments",
+    validateAndTransform(bulkActionByIdsSchema),
+    controller.getByIds,
+  );
+
+  router.delete(
+    "/attachments",
+    validateAndTransform(bulkActionByIdsSchema),
+    controller.deleteByIds,
+  );
+
+  router.post(
+    "/attachments/files",
+    upload.single("file"),
+    validateAndTransform(uploadSingleFileSchema),
+    controller.uploadFile,
+  );
+
+  router.post(
+    "/attachments/files/batch",
+    upload.array("files"),
+    validateAndTransform(uploadMultipleFilesSchema),
+    controller.uploadFiles,
+  );
+}
+
+initRoutes().catch(logError);
 
 export default router;

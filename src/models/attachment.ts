@@ -3,21 +3,21 @@ import { ObjectId } from "mongodb";
 export type AttachmentType = "file" | "link" | "ref";
 
 export interface File {
-  gridId: ObjectId;
+  file_id: ObjectId;
   name: string;
   size: number;
-  contentType: string;
+  content_type: string;
   thumbnail?: Thumbnail;
 }
 
 export interface Thumbnail {
-  gridId: ObjectId;
+  file_id: ObjectId;
   width: number;
   height: number;
 }
 
 export default interface Attachment {
-  id: ObjectId;
+  _id?: ObjectId;
   type: AttachmentType;
   file?: File;
   link?: string;

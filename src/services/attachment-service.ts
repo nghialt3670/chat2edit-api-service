@@ -1,35 +1,108 @@
-import { ObjectId } from "mongodb";
+import { Collection, ObjectId } from "mongodb";
 import path from "path";
 import {
   deleteFromGridFS,
   downloadFromGridFS,
-  getCollection,
   uploadToGridFS,
 } from "../lib/mongodb";
+import Attachment, { File, Thumbnail } from "../models/attachment";
 import { createThumbnail, hasThumbnail } from "../utils/thumbnail";
-import Attachment, { File } from "../models/attachment";
 import { logError } from "../utils/error";
 
-export async function uploadFile(
-  file: Express.Multer.File,
-): Promise<Attachment> {
-  const collection = await getCollection("attachments");
+export default class AttachmentService {
+  private collection: Collection<Attachment>;
 
-  const fileId = await uploadToGridFS(
-    file.buffer,
-    file.originalname,
-    file.mimetype,
-    "files",
-  );
+  constructor(collection: Collection<Attachment>) {
+    this.collection = collection;
+  }
 
-  const fileModel: File = {
-    gridId: fileId,
-    name: file.originalname,
-    size: file.size,
-    contentType: file.mimetype,
+  findById = async (id: ObjectId): Promise<Attachment | null> => {
+    return await this.collection.findOne({ _id: id });
   };
 
-  if (hasThumbnail(file)) {
+  findByIds = async (ids: ObjectId[]): Promise<Attachment[]> => {
+    return this.collection.find({ _id: { $in: ids } }).toArray();
+  };
+
+  deleteById = async (id: ObjectId): Promise<void> => {
+    const attachment = await this.collection.findOneAndDelete({ _id: id });
+    if (!attachment) return;
+    this.deleteFile(attachment);
+  };
+
+  deleteByIds = async (ids: ObjectId[]): Promise<void> => {
+    const attachments = await this.findByIds(ids);
+    for (const attachment of attachments) this.deleteFile(attachment);
+    await this.collection.deleteMany({ _id: { $in: ids } });
+  };
+
+  createWithFile = async (file: Express.Multer.File): Promise<Attachment> => {
+    const fileModel = await this.uploadFile(file);
+
+    if (hasThumbnail(file))
+      fileModel.thumbnail = await this.uploadFileThumbnail(file);
+
+    const result = await this.collection.insertOne({
+      type: "file",
+      file: fileModel,
+    });
+
+    return {
+      _id: result.insertedId,
+      type: "file",
+      file: fileModel,
+    };
+  };
+
+  createReference = async (id: ObjectId): Promise<Attachment | null> => {
+    const target = await this.collection.findOne({ _id: id });
+    if (!target) return null;
+
+    const result = await this.collection.insertOne({
+      type: "ref",
+      ref: id,
+    });
+
+    return {
+      _id: result.insertedId,
+      type: "ref",
+      ref: id,
+    };
+  };
+
+  downloadFileBuffer = async (id: ObjectId): Promise<Buffer | null> => {
+    const attachment = await this.collection.findOne({ _id: id });
+    const fileId = attachment?.file?.file_id;
+    return fileId ? downloadFromGridFS(fileId, "files") : null;
+  };
+
+  downloadFileThumbnailBuffer = async (
+    id: ObjectId,
+  ): Promise<Buffer | null> => {
+    const attachment = await this.collection.findOne({ _id: id });
+    const fileId = attachment?.file?.thumbnail?.file_id;
+    return fileId ? downloadFromGridFS(fileId, "thumbnails") : null;
+  };
+
+  private uploadFile = async (file: Express.Multer.File): Promise<File> => {
+    const fileId = await uploadToGridFS(
+      file.buffer,
+      file.originalname,
+      file.mimetype,
+      "files",
+    );
+
+    return {
+      file_id: fileId,
+      name: file.originalname,
+      size: file.size,
+      content_type: file.mimetype,
+    };
+  };
+
+  private uploadFileThumbnail = async (
+    file: Express.Multer.File,
+  ): Promise<Thumbnail> => {
     const { buffer, width, height, format } = await createThumbnail(file);
 
     const oldExt = path.extname(file.originalname);
@@ -37,119 +110,23 @@ export async function uploadFile(
     const filename = file.originalname.replace(oldExt, newExt);
     const contentType = `image/${format}`;
 
-    const thumbnailId = await uploadToGridFS(
+    const fileId = await uploadToGridFS(
       buffer,
       filename,
       contentType,
       "thumbnails",
     );
 
-    fileModel.thumbnail = {
-      gridId: thumbnailId,
-      width,
-      height,
-    };
-  }
-
-  const result = await collection.insertOne({
-    type: "file",
-    file: fileModel,
-  });
-
-  return {
-    id: result.insertedId,
-    type: "file",
-    file: fileModel,
-  };
-}
-
-export async function createRef(id: ObjectId): Promise<Attachment | null> {
-  const collection = await getCollection("attachments");
-
-  const referenced = await collection.findOne({ _id: id });
-  if (!referenced) return null;
-
-  const result = await collection.insertOne({
-    type: "ref",
-    ref: id,
-  });
-
-  return {
-    id: result.insertedId,
-    type: "ref",
-    ref: id,
-  };
-}
-
-export async function findById(id: ObjectId): Promise<Attachment | null> {
-  const collection = await getCollection("attachments");
-
-  const document = await collection.findOne({ _id: id });
-  if (!document) return null;
-
-  const attachment: Attachment = {
-    id: document._id,
-    type: document.type,
+    return { file_id: fileId, width, height };
   };
 
-  if (document.file) attachment.file = document.file;
-  if (document.link) attachment.link = document.link;
-  if (document.ref) attachment.ref = document.ref;
+  private deleteFile = async (attachment: Attachment): Promise<void> => {
+    let fileId = attachment.file?.file_id;
+    if (!fileId) return;
+    deleteFromGridFS(fileId, "files").catch(logError);
 
-  return attachment;
-}
-
-export async function downloadFileById(id: ObjectId): Promise<Buffer | null> {
-  const collection = await getCollection("attachments");
-
-  const document = await collection.findOne({ _id: id });
-  if (!document || !document.file) return null;
-
-  return downloadFromGridFS(document.file.gridId, "files");
-}
-
-export async function downloadThumbnailById(
-  id: ObjectId,
-): Promise<Buffer | null> {
-  const collection = await getCollection("attachments");
-
-  const document = await collection.findOne({ _id: id });
-  if (!document || !document.file || !document.file.thumbnail) return null;
-
-  return downloadFromGridFS(document.file.thumbnail.gridId, "thumbnails");
-}
-
-export async function findByIds(ids: ObjectId[]): Promise<Attachment[]> {
-  const collection = await getCollection("attachments");
-
-  const documents = await collection.find({ _id: { $in: ids } }).toArray();
-
-  return documents.map((doc) => {
-    const attachment: Attachment = {
-      id: doc._id,
-      type: doc.type,
-    };
-
-    if (doc.file) attachment.file = doc.file;
-    if (doc.link) attachment.link = doc.link;
-    if (doc.ref) attachment.ref = doc.ref;
-
-    return attachment;
-  });
-}
-
-export async function deleteByIds(ids: ObjectId[]): Promise<void> {
-  const collection = await getCollection("attachments");
-
-  const documents = await collection.find({ _id: { $in: ids } }).toArray();
-
-  for (const doc of documents) {
-    if (!doc.file) continue;
-    deleteFromGridFS(doc.file.gridId, "files").catch(logError);
-
-    if (!doc.file.thumbnail) continue;
-    deleteFromGridFS(doc.file.thumbnail.gridId, "thumbnails").catch(logError);
-  }
-
-  await collection.deleteMany({ _id: { $in: ids } });
+    fileId = attachment.file?.thumbnail?.file_id;
+    if (!fileId) return;
+    deleteFromGridFS(fileId, "thumbnails").catch(logError);
+  };
 }

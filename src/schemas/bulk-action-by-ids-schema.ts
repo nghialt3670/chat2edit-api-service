@@ -2,10 +2,10 @@ import { z } from "zod";
 import { toObjectIds } from "../utils/object-id";
 import { splitComma } from "../utils/url-query";
 
-const getOrDeleteManySchema = z.object({
+const bulkActionByIdsSchema = z.object({
   query: z.object({
     ids: z.string().transform(splitComma).transform(toObjectIds),
   }),
 });
 
-export default getOrDeleteManySchema;
+export default bulkActionByIdsSchema;
