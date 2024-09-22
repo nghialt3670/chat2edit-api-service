@@ -8,7 +8,7 @@ const uploadFilesSchema = z.object({
         buffer: z.instanceof(Buffer),
       }),
     )
-    .min(1, "No files provided"),
+    .min(1),
 });
 
 export default uploadFilesSchema;

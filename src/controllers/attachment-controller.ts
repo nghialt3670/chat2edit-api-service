@@ -1,9 +1,12 @@
 import { Request, Response } from "express";
 import streamifier from "streamifier";
-import createReference, {
+import { ObjectId } from "mongodb";
+import {
+  createRef,
   deleteByIds,
   downloadFileById,
   downloadThumbnailById,
+  findByIds,
   uploadFile,
 } from "../services/attachment-service";
 import { logError } from "../utils/error";
@@ -34,10 +37,10 @@ export async function uploadFiles(request: Request, response: Response) {
   }
 }
 
-export async function createReferences(request: Request, response: Response) {
+export async function createRefs(request: Request, response: Response) {
   try {
-    const referencedIds = request.body.referencedIds as string[];
-    const attachments = await Promise.all(referencedIds.map(createReference));
+    const ids = request.body.ids as unknown as ObjectId[];
+    const attachments = await Promise.all(ids.map(createRef));
     response.status(200).send(attachments);
   } catch (error) {
     logError(error);
@@ -49,8 +52,8 @@ export async function createReferences(request: Request, response: Response) {
 
 export async function getFile(request: Request, response: Response) {
   try {
-    const attachmentId = request.query.attachmentId as string;
-    const buffer = await downloadFileById(attachmentId);
+    const id = request.params.id as unknown as ObjectId;
+    const buffer = await downloadFileById(id);
     if (!buffer) response.status(400).send("File not found");
     response.end(buffer);
   } catch (error) {
@@ -63,8 +66,8 @@ export async function getFile(request: Request, response: Response) {
 
 export async function getThumbnail(request: Request, response: Response) {
   try {
-    const attachmentId = request.query.attachmentId as string;
-    const buffer = await downloadThumbnailById(attachmentId);
+    const id = request.params.id as unknown as ObjectId;
+    const buffer = await downloadThumbnailById(id);
     if (!buffer) response.status(400).send("Thumbnail not found");
     response.end(buffer);
   } catch (error) {
@@ -75,10 +78,23 @@ export async function getThumbnail(request: Request, response: Response) {
   }
 }
 
+export async function getAttachments(request: Request, response: Response) {
+  try {
+    const ids = request.query.ids as unknown as ObjectId[];
+    const attachments = await findByIds(ids);
+    response.status(200).send(attachments);
+  } catch (error) {
+    logError(error);
+    response
+      .status(500)
+      .send(error instanceof Error ? error.message : "Unknown error");
+  }
+}
+
 export async function deleteAttachments(request: Request, response: Response) {
   try {
-    const attachmentIds = request.body.attachmentIds as string[];
-    await deleteByIds(attachmentIds);
+    const ids = request.query.ids as unknown as ObjectId[];
+    await deleteByIds(ids);
     response.status(204).send();
   } catch (error) {
     logError(error);

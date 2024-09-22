@@ -21,5 +21,5 @@ export default interface Attachment {
   type: AttachmentType;
   file?: File;
   link?: string;
-  referencedId?: ObjectId;
+  ref?: ObjectId;
 }
