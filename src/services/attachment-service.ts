@@ -4,7 +4,7 @@ import {
   deleteFromGridFS,
   downloadFromGridFS,
   uploadToGridFS,
-} from "../lib/mongodb";
+} from "../lib/db";
 import Attachment, { File, Thumbnail } from "../models/attachment";
 import { createThumbnail, hasThumbnail } from "../utils/thumbnail";
 import { logError } from "../utils/error";

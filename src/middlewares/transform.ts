@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { z, ZodError } from "zod";
 
-export default function validateAndTransform(schema: z.ZodSchema) {
+export default function transform(schema: z.ZodSchema) {
   return (req: Request, res: Response, next: Function) => {
     try {
       const parsed = schema.parse({

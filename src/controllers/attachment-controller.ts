@@ -4,7 +4,7 @@ import { ObjectId } from "mongodb";
 import AttachmentService from "../services/attachment-service";
 import AttachmentMapper from "../mappers/attachment-mapper";
 import { logError } from "../utils/error";
-import initClam from "../lib/clamscan";
+import initClam from "../lib/scan";
 
 export default class AttachmentController {
   private service: AttachmentService;

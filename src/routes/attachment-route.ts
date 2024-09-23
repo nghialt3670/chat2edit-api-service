@@ -5,13 +5,13 @@ import { Collection } from "mongodb";
 import uploadMultipleFilesSchema from "../schemas/upload-multiple-files-schema";
 import singleActionByIdSchema from "../schemas/single-action-by-id-schema";
 import uploadSingleFileSchema from "../schemas/upload-single-file-schema";
-import validateAndTransform from "../middlewares/validate-and-transform";
 import bulkActionByIdsSchema from "../schemas/bulk-action-by-ids-schema";
 import AttachmentController from "../controllers/attachment-controller";
 import AttachmentService from "../services/attachment-service";
-import { getCollection } from "../lib/mongodb";
+import transform from "../middlewares/transform";
 import Attachment from "../models/attachment";
 import { logError } from "../utils/error";
+import { getCollection } from "../lib/db";
 
 const router = Router();
 const storage = multer.memoryStorage();
@@ -26,57 +26,57 @@ async function initRoutes() {
 
   router.get(
     "/attachments/:id",
-    validateAndTransform(singleActionByIdSchema),
+    transform(singleActionByIdSchema),
     controller.getById,
   );
 
   router.delete(
     "/attachments/:id",
-    validateAndTransform(singleActionByIdSchema),
+    transform(singleActionByIdSchema),
     controller.deleteById,
   );
 
   router.get(
     "/attachments/:id/file",
-    validateAndTransform(singleActionByIdSchema),
+    transform(singleActionByIdSchema),
     controller.getFile,
   );
 
   router.get(
     "/attachments/:id/file/thumbnail",
-    validateAndTransform(singleActionByIdSchema),
+    transform(singleActionByIdSchema),
     controller.getFileThumbnail,
   );
 
   router.post(
     "/attachments/:id/references",
-    validateAndTransform(singleActionByIdSchema),
+    transform(singleActionByIdSchema),
     controller.createReference,
   );
 
   router.get(
     "/attachments",
-    validateAndTransform(bulkActionByIdsSchema),
+    transform(bulkActionByIdsSchema),
     controller.getByIds,
   );
 
   router.delete(
     "/attachments",
-    validateAndTransform(bulkActionByIdsSchema),
+    transform(bulkActionByIdsSchema),
     controller.deleteByIds,
   );
 
   router.post(
     "/attachments/files",
     upload.single("file"),
-    validateAndTransform(uploadSingleFileSchema),
+    transform(uploadSingleFileSchema),
     controller.uploadFile,
   );
 
   router.post(
     "/attachments/files/batch",
     upload.array("files"),
-    validateAndTransform(uploadMultipleFilesSchema),
+    transform(uploadMultipleFilesSchema),
     controller.uploadFiles,
   );
 }

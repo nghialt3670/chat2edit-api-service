@@ -1,23 +1,41 @@
-FROM node:18
+# Stage 1: Build the application
+FROM node:18 as build
 
-RUN apt-get update && \
-    apt-get install -y clamav clamav-daemon build-essential && \
-    freshclam
-
+# Set working directory
 WORKDIR /usr/src/app
 
+# Copy package.json and package-lock.json (if available)
 COPY package*.json ./
 
-RUN npm install --production
+# Install dependencies
+RUN npm install
 
-RUN npm rebuild
-
-RUN npm install -g typescript
-
+# Copy the entire app to the working directory
 COPY . .
 
+# Compile TypeScript
 RUN npm run build
 
+# Stage 2: Production environment
+FROM node:18
+
+# Install ClamAV for virus scanning
+RUN apt-get update && \
+    apt-get install -y clamav clamav-daemon && \
+    freshclam
+
+# Set working directory
+WORKDIR /usr/src/app
+
+# Copy the build from the previous stage
+COPY --from=build /usr/src/app/dist ./dist
+COPY --from=build /usr/src/app/package*.json ./
+
+# Install only production dependencies
+RUN npm install --only=production
+
+# Expose port 3000 (or the port your app runs on)
 EXPOSE 3000
 
-CMD ["sh", "-c", "clamd & node dist/index.js"]
+# Start the server
+CMD ["node", "dist/index.js"]
