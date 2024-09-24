@@ -1,5 +1,5 @@
 # Stage 1: Build the application
-FROM node:18 as build
+FROM node:18 AS build
 
 # Set working directory
 WORKDIR /usr/src/app
@@ -12,6 +12,9 @@ RUN npm install
 
 # Copy the entire app to the working directory
 COPY . .
+
+# Copy the .env file into the image
+COPY .env .env
 
 # Compile TypeScript
 RUN npm run build
@@ -31,11 +34,14 @@ WORKDIR /usr/src/app
 COPY --from=build /usr/src/app/dist ./dist
 COPY --from=build /usr/src/app/package*.json ./
 
+# Copy the .env file into the production image
+COPY .env .env
+
 # Install only production dependencies
 RUN npm install --only=production
 
 # Expose port 3000 (or the port your app runs on)
 EXPOSE 3000
 
-# Start the server
-CMD ["node", "dist/index.js"]
+# Start the ClamAV daemon in the background and then the app
+CMD ["bash", "-c", "service clamav-daemon start && npm run start"]
