@@ -4,7 +4,7 @@ import { Buffer } from "buffer";
 import {
   THUMBNAIL_MAX_HEIGHT,
   THUMBNAIL_MAX_WIDTH,
-} from "../configs/thumbnail";
+} from "../config/thumbnail.config";
 
 export function hasThumbnail(file: Express.Multer.File): boolean {
   return (
