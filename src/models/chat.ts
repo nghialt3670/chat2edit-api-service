@@ -3,7 +3,7 @@ import { IMessage, messageSchema } from "./message";
 
 export interface ISettings extends Document {
   language: "vi" | "en";
-  provider: "fabric";
+  provider: "fabric" | "pandas";
   llm: "gpt-3.5-turbo" | "gemini-1.5-flash";
   maxChatPhases: number;
   maxPromptPhases: number;
@@ -29,7 +29,7 @@ export const settingsSchema = new Schema<ISettings>(
     },
     provider: {
       type: String,
-      enum: ["fabric"],
+      enum: ["fabric", "pandas"],
       required: true,
       default: "fabric",
     },

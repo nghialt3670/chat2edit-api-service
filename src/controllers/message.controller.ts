@@ -6,11 +6,11 @@ import mime from "mime";
 import messageCreateRequestSchema from "../schemas/request/message-create.request.schema";
 import queryChatIdRequestSchema from "../schemas/request/query-chat-id.request.schema";
 import messageResponseSchema from "../schemas/response/message.response.schema";
-import handler, { authHandler } from "../utils/handler";
-import Message, { IMessage } from "../models/message";
 import { uploadFile } from "./attachment.controller";
+import { authHandler } from "../utils/handler";
 import { downloadFromGridFS } from "../lib/fs";
 import Attachment from "../models/attachment";
+import Message from "../models/message";
 import Chat from "../models/chat";
 import ENV from "../utils/env";
 
@@ -115,40 +115,40 @@ export const sendMessage = authHandler(
 
     const zipped = await response.arrayBuffer();
     const buffer = Buffer.from(zipped);
-    const zip = new AdmZip(buffer);
+    // const zip = new AdmZip(buffer);
     const unzippedFiles: Express.Multer.File[] = [];
 
     let textResonse;
 
-    zip.getEntries().forEach((entry) => {
-      if (!entry.isDirectory) {
-        const filename = entry.entryName;
-        const buffer = entry.getData();
+    // zip.getEntries().forEach((entry) => {
+    //   if (!entry.isDirectory) {
+    //     const filename = entry.entryName;
+    //     const buffer = entry.getData();
 
-        if (filename === "text.txt") {
-          textResonse = buffer.toString("utf-8");
-        } else {
-          const contentType =
-            mime.getType(filename) || "application/octet-stream";
-          const multerFile = createMulterFile(buffer, filename, contentType);
-          unzippedFiles.push(multerFile);
-        }
-      }
-    });
+    //     if (filename === "text.txt") {
+    //       textResonse = buffer.toString("utf-8");
+    //     } else {
+    //       const contentType =
+    //         mime.getType(filename) || "application/octet-stream";
+    //       const multerFile = createMulterFile(buffer, filename, contentType);
+    //       unzippedFiles.push(multerFile);
+    //     }
+    //   }
+    // });
 
-    const uploadPromises = unzippedFiles.map(uploadFile);
-    const uploadedFiles = await Promise.all(uploadPromises);
-    const attachmentCreates = uploadedFiles.map((file) => ({
-      type: "file",
-      file,
-    }));
+    // const uploadPromises = unzippedFiles.map(uploadFile);
+    // const uploadedFiles = await Promise.all(uploadPromises);
+    // const attachmentCreates = uploadedFiles.map((file) => ({
+    //   type: "file",
+    //   file,
+    // }));
 
-    const responseAttachments = await Attachment.insertMany(attachmentCreates);
-    const responseAttachmentIds = responseAttachments.map((att) => att.id);
-    const responseMesage = await Message.create({
-      text: textResonse,
-      attachmentIds: responseAttachmentIds,
-    });
+    // const responseAttachments = await Attachment.insertMany(attachmentCreates);
+    // const responseAttachmentIds = responseAttachments.map((att) => att.id);
+    // const responseMesage = await Message.create({
+    //   text: textResonse,
+    //   attachmentIds: responseAttachmentIds,
+    // });
 
     return res.json();
   },

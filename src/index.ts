@@ -2,6 +2,7 @@ import express from "express";
 import attachmentRouter from "./routes/attachment.route";
 import morgan from "./middlewares/morgan.middleware";
 import accountRouter from "./routes/account.route";
+import messageRouter from "./routes/message.route";
 import chatRouter from "./routes/chat.route";
 import connectToDatabase from "./lib/db";
 import ENV from "./utils/env";
@@ -12,6 +13,7 @@ app.use(morgan);
 app.use(express.json());
 
 app.use("/api", chatRouter);
+app.use("/api", messageRouter);
 app.use("/api", accountRouter);
 app.use("/api", attachmentRouter);
 
