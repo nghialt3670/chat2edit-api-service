@@ -4,6 +4,30 @@ import queryAccountIdRequestSchema from "../schemas/request/query-account-id.req
 import Account from "../models/account";
 import { logError } from "./error";
 
+function recursiveMerge(
+  schemaA: z.ZodSchema<any>,
+  schemaB: z.ZodSchema<any>,
+): z.ZodSchema<any> {
+  if (schemaA instanceof z.ZodObject && schemaB instanceof z.ZodObject) {
+    const shapeA = schemaA.shape;
+    const shapeB = schemaB.shape;
+
+    const mergedShape: Record<string, z.ZodTypeAny> = {};
+
+    for (const key in shapeA)
+      if (shapeB[key])
+        mergedShape[key] = recursiveMerge(shapeA[key], shapeB[key]);
+      else mergedShape[key] = shapeA[key];
+
+    for (const key in shapeB) if (!shapeA[key]) mergedShape[key] = shapeB[key];
+
+    return z.object(mergedShape);
+  }
+
+  // If the fields are not ZodObjects, use union
+  return z.union([schemaA, schemaB]);
+}
+
 const handler = (
   schema: z.ZodObject<z.ZodRawShape>,
   fn: (req: Request, res: Response, next: NextFunction) => Promise<any>,
@@ -37,12 +61,12 @@ export const authHandler = (
 ) => {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const parsed = queryAccountIdRequestSchema.merge(schema).parse(req);
+      const mergedSchema = recursiveMerge(queryAccountIdRequestSchema, schema);
+      const parsed = mergedSchema.parse(req);
 
       const accountId = parsed.query.accountId;
       const account = await Account.findById(accountId);
-
-      if (!account) res.status(401).send();
+      if (!account) return res.status(401).send();
 
       if (parsed.params) req.params = parsed.params;
       if (parsed.query) req.query = parsed.query;
