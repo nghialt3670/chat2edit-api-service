@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import { ObjectId } from "mongodb";
 import { z } from "zod";
 import chatDetailsResponseSchema from "../schemas/response/chat-details.response.schema";
 import chatPreviewResponseSchema from "../schemas/response/chat-preview.response.schema";
@@ -61,12 +62,48 @@ export const deleteChat = authHandler(
 
     if (!chat.accountId.equals(accountId)) return res.status(403).send();
 
-    await Chat.findByIdAndDelete(chatId)
-    
-    Message.deleteMany({ chatId })
+    await Chat.findByIdAndDelete(chatId);
+
+    Message.deleteMany({ chatId });
 
     //Implement attachments delete
 
     return res.status(204).send();
+  },
+);
+
+export const createShareId = authHandler(
+  paramIdRequestSchema,
+  async (req: Request, res: Response) => {
+    const id = req.params.id;
+    const accountId = req.query.accountId;
+
+    const chat = await Chat.findById(id);
+    if (!chat) return res.status(404).send();
+
+    if (!chat.accountId.equals(accountId)) return res.status(403).send();
+
+    chat.shareId = new ObjectId();
+    await chat.save();
+
+    return res.status(201).json(chat.shareId);
+  },
+);
+
+export const deleteShareId = authHandler(
+  paramIdRequestSchema,
+  async (req: Request, res: Response) => {
+    const id = req.params.id;
+    const accountId = req.query.accountId;
+
+    const chat = await Chat.findById(id);
+    if (!chat) return res.status(404).send();
+
+    if (!chat.accountId.equals(accountId)) return res.status(403).send();
+
+    chat.shareId = null;
+    await chat.save();
+
+    return res.status(204).json(chat.shareId);
   },
 );
