@@ -5,6 +5,7 @@ import {
   createFileAttachments,
   createRefAttachmentById,
   deleteAttachmentById,
+  getAttachmentById,
   getAttachmentFileById,
   getAttachmentFileThumbnailById,
 } from "../controllers/attachment.controller";
@@ -13,6 +14,7 @@ const router = Router();
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
+router.get("/attachments/:id", getAttachmentById);
 router.get("/attachments/:id/file", getAttachmentFileById);
 router.get("/attachments/:id/file/thumbnail", getAttachmentFileThumbnailById);
 router.post("/attachments/files", upload.single("file"), createFileAttachment);

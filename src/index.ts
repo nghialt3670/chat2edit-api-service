@@ -1,16 +1,10 @@
-import mongoose from "mongoose";
-import ENV from "./utils/env";
-mongoose.connect(ENV.MONGO_URI);
-
-import { expressjwt } from "express-jwt";
 import express from "express";
-import jwks from "jwks-rsa";
-import cors from "cors";
 import attachmentRouter from "./routes/attachment.route";
 import morgan from "./middlewares/morgan.middleware";
 import accountRouter from "./routes/account.route";
 import chatRouter from "./routes/chat.route";
 import connectToDatabase from "./lib/db";
+import ENV from "./utils/env";
 
 const app = express();
 

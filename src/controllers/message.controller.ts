@@ -45,8 +45,7 @@ export const createMessage = authHandler(
     const chat = await Chat.findById(chatId);
     if (!chat) return res.status(404).send();
 
-    if (!chat.accountId.equals(accountId)) 
-      return res.status(403).send();
+    if (!chat.accountId.equals(accountId)) return res.status(403).send();
 
     if (chat.lastMessage && chat.lastMessage.type === "request")
       return res.status(400).send();
@@ -75,8 +74,7 @@ export const sendMessage = authHandler(
     const chat = await Chat.findById(chatId);
     if (!chat) return res.status(404).send();
 
-    if (!chat.accountId.equals(accountId)) 
-      return res.status(403).send();
+    if (!chat.accountId.equals(accountId)) return res.status(403).send();
 
     const message = chat.lastMessage;
     if (!message || message.type !== "request") return res.status(400).send();

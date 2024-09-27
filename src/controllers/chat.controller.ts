@@ -30,8 +30,7 @@ export const getChatDetails = authHandler(
     const chat = await Chat.findById(chatId);
     if (!chat) res.status(404).send();
 
-    if (!chat.accountId.equals(accountId)) 
-      return res.status(403).send();
+    if (!chat.accountId.equals(accountId)) return res.status(403).send();
 
     chat.messages = await Message.find({ chatId });
 

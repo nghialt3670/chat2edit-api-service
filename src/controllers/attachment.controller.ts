@@ -15,6 +15,22 @@ import { scanBuffer } from "../lib/scan";
 
 const responseSchema = attachmentResponseSchema;
 
+export const getAttachmentById = authHandler(
+  paramIdRequestSchema,
+  async (req: Request, res: Response) => {
+    const id = req.params.id;
+    const accountId = req.query.accountId;
+
+    const attachment = await Attachment.findById(id);
+    if (!attachment) return res.status(404).send();
+
+    if (!attachment.accountId.equals(accountId)) return res.status(403).send();
+
+    const payload = responseSchema.parse(attachment);
+    return res.json(payload);
+  },
+);
+
 export const deleteAttachmentById = authHandler(
   paramIdRequestSchema,
   async (req: Request, res: Response) => {
@@ -24,8 +40,7 @@ export const deleteAttachmentById = authHandler(
     const attachment = await Attachment.findById(id);
     if (!attachment) return res.status(404).send();
 
-    if (!attachment.accountId.equals(accountId)) 
-      return res.status(403).send();
+    if (!attachment.accountId.equals(accountId)) return res.status(403).send();
 
     await Attachment.findByIdAndDelete(id);
 
@@ -129,8 +144,7 @@ export const createRefAttachmentById = authHandler(
     const attachment = await Attachment.findById(id);
     if (!attachment) return res.status(404).send();
 
-    if (!attachment.accountId.equals(accountId)) 
-      return res.status(403).send();
+    if (!attachment.accountId.equals(accountId)) return res.status(403).send();
 
     const refAttachmentCreate = {
       accountId,
@@ -154,8 +168,7 @@ export const getAttachmentFileById = authHandler(
     const attachment = await Attachment.findById(id);
     if (!attachment || !attachment.file) return res.status(404).send();
 
-    if (!attachment.accountId.equals(accountId)) 
-      return res.status(403).send();
+    if (!attachment.accountId.equals(accountId)) return res.status(403).send();
 
     const fileId = attachment.file.fileId;
     const buffer = await downloadFromGridFS(fileId, "files");
@@ -170,15 +183,10 @@ export const getAttachmentFileThumbnailById = authHandler(
     const accountId = req.query.accountId;
 
     const attachment = await Attachment.findById(id);
-    if (
-      !attachment ||
-      !attachment.file ||
-      !attachment.file.thumbnail
-    )
-    return res.status(404).send();
-    
-    if (!attachment.accountId.equals(accountId)) 
-      return res.status(403).send();
+    if (!attachment || !attachment.file || !attachment.file.thumbnail)
+      return res.status(404).send();
+
+    if (!attachment.accountId.equals(accountId)) return res.status(403).send();
 
     const fileId = attachment.file.thumbnail.fileId;
     const buffer = await downloadFromGridFS(fileId, "thumbnails");
