@@ -1,9 +1,9 @@
 import { Request, Response } from "express";
+import { lookup } from "mime-types";
 import concat from "concat-stream";
 import { Readable } from "stream";
 import FormData from "form-data";
 import yauzl from "yauzl";
-import mime from "mime";
 import messageCreateRequestSchema from "../schemas/request/message-create.request.schema";
 import queryChatIdRequestSchema from "../schemas/request/query-chat-id.request.schema";
 import messageResponseSchema from "../schemas/response/message.response.schema";
@@ -137,7 +137,7 @@ export const sendMessage = authHandler(
                   text = buffer.toString("utf-8");
                 } else {
                   const contentType =
-                    mime.getType(filename) || "application/octet-stream";
+                    lookup(filename) || "application/octet-stream";
                   const multerFile = createMulterFile(
                     buffer,
                     filename,
