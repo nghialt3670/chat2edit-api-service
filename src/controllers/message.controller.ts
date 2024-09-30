@@ -1,9 +1,6 @@
 import { Request, Response } from "express";
 import { lookup } from "mime-types";
-import concat from "concat-stream";
 import { Readable } from "stream";
-import FormData from "form-data";
-import yauzl from "yauzl";
 import messageCreateRequestSchema from "../schemas/request/message-create.request.schema";
 import queryChatIdRequestSchema from "../schemas/request/query-chat-id.request.schema";
 import messageResponseSchema from "../schemas/response/message.response.schema";
@@ -14,6 +11,7 @@ import Attachment from "../models/attachment";
 import Message from "../models/message";
 import Chat from "../models/chat";
 import ENV from "../utils/env";
+import JSZip from "jszip";
 
 const createMulterFile = (
   buffer: Buffer,
@@ -52,14 +50,14 @@ export const createMessage = authHandler(
       return res.status(400).send();
 
     const attachments = await Attachment.find({ _id: { $in: attachmentIds } });
-
     if (attachments.length !== attachmentIds.length)
       return res.status(404).send();
 
     const type = "request";
-    const message = await Message.create({ chatId, type, text, attachmentIds });
+    const message = await Message.create({ chatId, type, text, attachments: attachmentIds });
 
     chat.lastMessage = message;
+    chat.title = text;
     await chat.save();
 
     return res.status(201).send();
@@ -78,38 +76,40 @@ export const sendMessage = authHandler(
     if (!chat.accountId.equals(accountId)) return res.status(403).send();
 
     let message = chat.lastMessage;
-    if (!message || message.type !== "request") return res.status(400).send();
+    if (!message || message.type !== 'request') return res.status(400).send();
 
-    let { attachmentIds } = message;
-    let attachments = await Attachment.find({ _id: { $in: attachmentIds } });
+    let attachments = await Attachment.find({ _id: { $in: message.attachments } });
+    console.log(message.attachments, attachments)
 
     const formData = new FormData();
+    formData.set('text', message.text);
+    formData.set('provider', chat.settings.provider);
+    formData.set('language', chat.settings.language);
+
     await Promise.all(
       attachments.map(async (att) => {
-        if (att.type === "file") {
+        if (att.type === 'file') {
           const { fileId, name, contentType } = att.file!;
-          const buffer = await downloadFromGridFS(fileId, "files");
-          const filename = `${fileId}.${name}`;
-          formData.append("files", buffer, { filename, contentType });
-        } else if (att.type === "link") {
-          throw new Error("Link attachment not implemented");
-        } else if (att.type === "ref") {
+          const buffer = await downloadFromGridFS(fileId, 'files');
+          const blob = new Blob([buffer], { type: contentType });
+          formData.append('files', blob, `${fileId}.${name}`);
+        } else if (att.type === 'link') {
+          throw new Error('Link attachment not implemented');
+        } else if (att.type === 'ref') {
           const src = await Attachment.findById(att.ref!);
-          if (!src) throw new Error("Source attachment not found");
-          const { fileId, name, contentType } = src.file!;
-          const emptyBuffer = Buffer.from("");
-          const filename = `${fileId}.${name}`;
-          formData.append("files", emptyBuffer, { filename, contentType });
+          if (!src) throw new Error('Source attachment not found');
+          const emptyBuffer = Buffer.from('');
+          const emptyBlob = new Blob([emptyBuffer], { type: 'application/octet-stream' });
+          formData.append('files', emptyBlob, `${src.file!.fileId}.${src.file!.name}`);
         }
-      }),
+      })
     );
 
     const base_url = ENV.PROMPT_SERVICE_API_BASE_URL;
-    const endpoint = `${base_url}/chats/phases?chatId=${chatId}&text=${message.text}`;
+    const endpoint = `${base_url}/api/phases?chat_id=${chatId}`;
     const response = await fetch(endpoint, {
-      method: "POST",
-      body: formData as unknown as BodyInit,
-      headers: formData.getHeaders(),
+      method: 'POST',
+      body: formData as unknown as BodyInit
     });
 
     if (!response.ok) return res.status(500).send();
@@ -117,57 +117,43 @@ export const sendMessage = authHandler(
     const zipped = await response.arrayBuffer();
     const buffer = Buffer.from(zipped);
     const unzippedFiles: Express.Multer.File[] = [];
-    let text;
+    let text: string | undefined;
 
-    yauzl.fromBuffer(buffer, { lazyEntries: true }, (err, zipFile) => {
-      if (err) throw err;
+    const zip = new JSZip();
+    const unzipped = await zip.loadAsync(buffer);
 
-      zipFile.readEntry();
+    for (const filename of Object.keys(unzipped.files)) {
+      const file = unzipped.files[filename];
+      if (file.dir) continue;
 
-      zipFile.on("entry", (entry) => {
-        if (!entry.fileName.endsWith("/")) {
-          zipFile.openReadStream(entry, (err, readStream) => {
-            if (err) throw err;
+      const content = await file.async('nodebuffer'); 
 
-            readStream.pipe(
-              concat((buffer) => {
-                const filename = entry.fileName;
-
-                if (filename === "text.txt") {
-                  text = buffer.toString("utf-8");
-                } else {
-                  const contentType =
-                    lookup(filename) || "application/octet-stream";
-                  const multerFile = createMulterFile(
-                    buffer,
-                    filename,
-                    contentType,
-                  );
-                  unzippedFiles.push(multerFile);
-                }
-
-                zipFile.readEntry(); // Continue reading the next entry
-              }),
-            );
-          });
-        } else {
-          zipFile.readEntry(); // Skip directories
-        }
-      });
-    });
-
+      if (filename === 'text.txt') {
+        text = content.toString('utf-8');
+      } else {
+        const contentType = lookup(filename) || 'application/octet-stream';
+        const multerFile = createMulterFile(content, filename, contentType);
+        unzippedFiles.push(multerFile);
+      }
+    }
+  
     const uploadPromises = unzippedFiles.map(uploadFile);
     const uploadedFiles = await Promise.all(uploadPromises);
     const attachmentCreates = uploadedFiles.map((file) => ({
-      type: "file",
-      file,
+      type: 'file',
+      file
     }));
 
+    const type = "response"
     attachments = await Attachment.insertMany(attachmentCreates);
-    attachmentIds = attachments.map((att) => att.id);
-    message = await Message.create({ text, attachmentIds });
+    const attachmentIds = attachments.map((att) => att.id);
+    message = await Message.create({ chatId, type, text, attachments: attachmentIds });
+
+    chat.lastMessage = message;
+    chat.title = text;
+    await chat.save();
 
     const payload = messageResponseSchema.parse(message);
     return res.json(payload);
-  },
+  }
 );

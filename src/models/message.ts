@@ -1,6 +1,4 @@
 import { Schema, model, Document, models, Types } from "mongoose";
-import { attachmentSchema } from "./attachment";
-import { IAttachment } from "./attachment";
 
 export interface IMessage extends Document {
   chatId: Types.ObjectId;
