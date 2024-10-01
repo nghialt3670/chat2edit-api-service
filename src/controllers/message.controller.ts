@@ -79,7 +79,6 @@ export const sendMessage = authHandler(
     if (!message || message.type !== 'request') return res.status(400).send();
 
     let attachments = await Attachment.find({ _id: { $in: message.attachments } });
-    console.log(message.attachments, attachments)
 
     const formData = new FormData();
     formData.set('text', message.text);

@@ -35,8 +35,6 @@ export const getChatDetails = authHandler(
 
     chat.messages = await Message.find({ chatId }).populate("attachments");
 
-    console.log(JSON.stringify(chat))
-
     const payload = chatDetailsResponseSchema.parse(chat);
     return res.json(payload);
   },
