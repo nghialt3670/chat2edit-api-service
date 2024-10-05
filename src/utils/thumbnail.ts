@@ -8,7 +8,7 @@ import {
 
 export function hasThumbnail(file: Express.Multer.File): boolean {
   return (
-    file.mimetype.startsWith("image/") || file.originalname.endsWith(".fabric")
+    file.mimetype.startsWith("image/") || file.originalname.endsWith(".fcanvas")
   );
 }
 
@@ -23,7 +23,7 @@ export async function hasTransparency(image: Sharp): Promise<boolean> {
 export async function getImageBuffer(file: Express.Multer.File) {
   if (file.mimetype.startsWith("image/")) {
     return file.buffer;
-  } else if (file.originalname.endsWith(".fabric")) {
+  } else if (file.originalname.endsWith(".fcanvas")) {
     const canvas = new Canvas();
     const json = file.buffer.toString("utf-8");
     await canvas.loadFromJSON(json);
