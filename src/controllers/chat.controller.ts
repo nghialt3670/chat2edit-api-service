@@ -47,12 +47,12 @@ export const createChat = authHandler(
     const accountId = req.query.accountId;
 
     const newChat = await Chat.create({ accountId, ...chatCreate });
-    const body = JSON.stringify({chat_id: newChat._id})
-    const endpoint = `${ENV.PROMPT_SERVICE_API_BASE_URL}/api/chats`
-    const headers = { "Content-Type": "application/json" }
-    const response = await fetch(endpoint, {method: "POST", headers, body})
+    const body = JSON.stringify({ chat_id: newChat._id });
+    const endpoint = `${ENV.PROMPT_SERVICE_API_BASE_URL}/api/chats`;
+    const headers = { "Content-Type": "application/json" };
+    const response = await fetch(endpoint, { method: "POST", headers, body });
     if (!response.ok) {
-      await Chat.deleteOne({_id: newChat._id})
+      await Chat.deleteOne({ _id: newChat._id });
       throw new Error();
     }
 

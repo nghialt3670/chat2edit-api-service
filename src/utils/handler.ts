@@ -80,7 +80,6 @@ export const authHandler = (
         console.error(error.errors);
         return res.status(422).json({ errors: error.errors });
       } else {
-        console.log(error)
         logError(error);
         return res.status(500).json({ error: "Internal Server Error" });
       }

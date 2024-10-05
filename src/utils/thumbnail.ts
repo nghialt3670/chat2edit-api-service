@@ -25,7 +25,13 @@ export async function getImageBuffer(file: Express.Multer.File) {
     return file.buffer;
   } else if (file.originalname.endsWith(".fabric")) {
     const canvas = new Canvas();
-    await canvas.loadFromJSON(file.buffer.toJSON());
+    const json = file.buffer.toString("utf-8");
+    await canvas.loadFromJSON(json);
+    if (canvas.backgroundImage) {
+      const width = canvas.backgroundImage.getScaledWidth();
+      const height = canvas.backgroundImage.getScaledHeight();
+      canvas.setDimensions({ width, height });
+    }
     const base64 = canvas.toDataURL().split(",").pop()!;
     return Buffer.from(base64, "base64");
   } else {
