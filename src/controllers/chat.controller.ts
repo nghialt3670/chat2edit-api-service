@@ -29,7 +29,7 @@ export const getChatDetails = authHandler(
     const accountId = req.query.accountId;
 
     const chat = await Chat.findById(chatId);
-    if (!chat) res.status(404).send();
+    if (!chat) return res.status(404).send();
 
     if (!chat.accountId.equals(accountId)) return res.status(403).send();
 
@@ -51,6 +51,7 @@ export const createChat = authHandler(
     const endpoint = `${ENV.PROMPT_SERVICE_API_BASE_URL}/api/chats`;
     const headers = { "Content-Type": "application/json" };
     const response = await fetch(endpoint, { method: "POST", headers, body });
+
     if (!response.ok) {
       await Chat.deleteOne({ _id: newChat._id });
       throw new Error();
@@ -67,8 +68,8 @@ export const deleteChat = authHandler(
     const accountId = req.query.accountId;
 
     const chat = await Chat.findById(chatId);
-    if (!chat) res.status(404).send();
 
+    if (!chat) return res.status(404).send();
     if (!chat.accountId.equals(accountId)) return res.status(403).send();
 
     await Chat.findByIdAndDelete(chatId);
@@ -88,8 +89,8 @@ export const createShareId = authHandler(
     const accountId = req.query.accountId;
 
     const chat = await Chat.findById(id);
-    if (!chat) return res.status(404).send();
 
+    if (!chat) return res.status(404).send();
     if (!chat.accountId.equals(accountId)) return res.status(403).send();
 
     chat.shareId = new ObjectId();
@@ -106,8 +107,8 @@ export const deleteShareId = authHandler(
     const accountId = req.query.accountId;
 
     const chat = await Chat.findById(id);
-    if (!chat) return res.status(404).send();
 
+    if (!chat) return res.status(404).send();
     if (!chat.accountId.equals(accountId)) return res.status(403).send();
 
     chat.shareId = null;
